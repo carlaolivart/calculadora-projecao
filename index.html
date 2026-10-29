@@ -7,8 +7,9 @@
     body { font-family: Arial, sans-serif; max-width: 480px; margin: 40px auto; }
     label { display: block; margin-top: 12px; }
     input { padding: 6px; width: 100%; }
-    button { margin-top: 16px; padding: 10px 16px; background: #2e7d32; color: white; border: none; border-radius: 6px; cursor: pointer; }
+    button { margin-top: 16px; margin-right: 8px; padding: 10px 16px; background: #2e7d32; color: white; border: none; border-radius: 6px; cursor: pointer; }
     #resultado { margin-top: 20px; font-size: 18px; }
+    #historico { margin-top: 24px; font-size: 14px; }
   </style>
 </head>
 <body>
@@ -24,10 +25,14 @@
   <input id="meses" type="number" value="12">
 
   <button onclick="calcular()">Calcular</button>
+  <button onclick="salvar()">Salvar cenário</button>
 
   <div id="resultado"></div>
+  <div id="historico"></div>
 
   <script>
+    var ultimo = null;
+
     function calcular() {
       var volume = Number(document.getElementById('volume').value);
       var taxa = Number(document.getElementById('crescimento').value) / 100;
@@ -38,10 +43,36 @@
         atual = atual * (1 + taxa);
         total = total + atual;
       }
+      ultimo = { volume: volume, crescimento: taxa * 100, meses: meses, final: Math.round(atual), total: Math.round(total) };
       document.getElementById('resultado').innerHTML =
-        'Volume no mês ' + meses + ': ' + Math.round(atual).toLocaleString('pt-BR') + '<br>' +
-        'Total acumulado: ' + Math.round(total).toLocaleString('pt-BR');
+        'Volume no mês ' + meses + ': ' + ultimo.final.toLocaleString('pt-BR') + '<br>' +
+        'Total acumulado: ' + ultimo.total.toLocaleString('pt-BR');
     }
+
+    function lerSalvos() {
+      try { return JSON.parse(localStorage.getItem('cenarios') || '[]'); }
+      catch (e) { return []; }
+    }
+
+    function salvar() {
+      if (!ultimo) { alert('Clique em Calcular antes de salvar.'); return; }
+      var lista = lerSalvos();
+      lista.push(ultimo);
+      try { localStorage.setItem('cenarios', JSON.stringify(lista)); } catch (e) {}
+      mostrar();
+    }
+
+    function mostrar() {
+      var lista = lerSalvos();
+      var html = '<strong>Cenários salvos (neste navegador)</strong><br>';
+      if (lista.length === 0) { html += 'Nenhum ainda.'; }
+      lista.forEach(function (c, n) {
+        html += (n + 1) + ') ' + c.volume + ' un, ' + c.crescimento + '% ao mês, ' + c.meses + ' meses: total ' + c.total.toLocaleString('pt-BR') + '<br>';
+      });
+      document.getElementById('historico').innerHTML = html;
+    }
+
+    mostrar();
   </script>
 </body>
 </html>
