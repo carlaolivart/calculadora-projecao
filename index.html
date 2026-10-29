@@ -10,6 +10,7 @@
     button { margin-top: 16px; margin-right: 8px; padding: 10px 16px; background: #2e7d32; color: white; border: none; border-radius: 6px; cursor: pointer; }
     #resultado { margin-top: 20px; font-size: 18px; }
     #historico { margin-top: 24px; font-size: 14px; }
+    #aviso { margin-top: 12px; font-size: 14px; color: #b3261e; }
   </style>
 </head>
 <body>
@@ -28,9 +29,16 @@
   <button onclick="salvar()">Salvar cenário</button>
 
   <div id="resultado"></div>
+  <div id="aviso"></div>
   <div id="historico"></div>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
+    var db = supabase.createClient(
+      'https://jnkfvbkwpkljtnuagyqx.supabase.co',
+      'sb_publishable_ml_IKusLcvDYndIP1T_-Jg_f4iY_9uL'
+    );
+
     var ultimo = null;
 
     function calcular() {
@@ -43,33 +51,31 @@
         atual = atual * (1 + taxa);
         total = total + atual;
       }
-      ultimo = { volume: volume, crescimento: taxa * 100, meses: meses, final: Math.round(atual), total: Math.round(total) };
+      ultimo = { volume: volume, crescimento: taxa * 100, meses: meses, volume_final: Math.round(atual), total: Math.round(total) };
       document.getElementById('resultado').innerHTML =
-        'Volume no mês ' + meses + ': ' + ultimo.final.toLocaleString('pt-BR') + '<br>' +
+        'Volume no mês ' + meses + ': ' + ultimo.volume_final.toLocaleString('pt-BR') + '<br>' +
         'Total acumulado: ' + ultimo.total.toLocaleString('pt-BR');
     }
 
-    function lerSalvos() {
-      try { return JSON.parse(localStorage.getItem('cenarios') || '[]'); }
-      catch (e) { return []; }
-    }
-
-    function salvar() {
-      if (!ultimo) { alert('Clique em Calcular antes de salvar.'); return; }
-      var lista = lerSalvos();
-      lista.push(ultimo);
-      try { localStorage.setItem('cenarios', JSON.stringify(lista)); } catch (e) {}
+    async function salvar() {
+      var aviso = document.getElementById('aviso');
+      aviso.textContent = '';
+      if (!ultimo) { aviso.textContent = 'Clique em Calcular antes de salvar.'; return; }
+      var resp = await db.from('cenarios').insert(ultimo);
+      if (resp.error) { aviso.textContent = 'Erro ao salvar: ' + resp.error.message; return; }
       mostrar();
     }
 
-    function mostrar() {
-      var lista = lerSalvos();
-      var html = '<strong>Cenários salvos (neste navegador)</strong><br>';
-      if (lista.length === 0) { html += 'Nenhum ainda.'; }
-      lista.forEach(function (c, n) {
-        html += (n + 1) + ') ' + c.volume + ' un, ' + c.crescimento + '% ao mês, ' + c.meses + ' meses: total ' + c.total.toLocaleString('pt-BR') + '<br>';
+    async function mostrar() {
+      var resp = await db.from('cenarios').select('*').order('created_at', { ascending: false }).limit(10);
+      var caixa = document.getElementById('historico');
+      if (resp.error) { caixa.textContent = 'Erro ao carregar: ' + resp.error.message; return; }
+      var html = '<strong>Cenários salvos (no banco de dados)</strong><br>';
+      if (resp.data.length === 0) { html += 'Nenhum ainda.'; }
+      resp.data.forEach(function (c) {
+        html += Number(c.volume) + ' un, ' + Number(c.crescimento) + '% ao mês, ' + Number(c.meses) + ' meses: total ' + Number(c.total).toLocaleString('pt-BR') + '<br>';
       });
-      document.getElementById('historico').innerHTML = html;
+      caixa.innerHTML = html;
     }
 
     mostrar();
