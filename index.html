@@ -11,26 +11,43 @@
     #resultado { margin-top: 20px; font-size: 18px; }
     #historico { margin-top: 24px; font-size: 14px; }
     #aviso { margin-top: 12px; font-size: 14px; color: #b3261e; }
+    #usuario { font-size: 14px; color: #555; }
   </style>
 </head>
 <body>
   <h1>Calculadora de projeção de volume</h1>
 
-  <label>Volume mensal atual (unidades)</label>
-  <input id="volume" type="number" value="1000">
+  <div id="login">
+    <h2>Entrar</h2>
+    <label>E-mail</label>
+    <input id="email" type="email">
+    <label>Senha (mínimo 6 caracteres)</label>
+    <input id="senha" type="password">
+    <button onclick="entrar()">Entrar</button>
+    <button onclick="criarConta()">Criar conta</button>
+  </div>
 
-  <label>Crescimento mensal (%)</label>
-  <input id="crescimento" type="number" value="5">
+  <div id="app" style="display:none">
+    <div id="usuario"></div>
+    <button onclick="sair()" style="background:#666;margin-top:8px">Sair</button>
 
-  <label>Quantidade de meses</label>
-  <input id="meses" type="number" value="12">
+    <label>Volume mensal atual (unidades)</label>
+    <input id="volume" type="number" value="1000">
 
-  <button onclick="calcular()">Calcular</button>
-  <button onclick="salvar()">Salvar cenário</button>
+    <label>Crescimento mensal (%)</label>
+    <input id="crescimento" type="number" value="5">
 
-  <div id="resultado"></div>
+    <label>Quantidade de meses</label>
+    <input id="meses" type="number" value="12">
+
+    <button onclick="calcular()">Calcular</button>
+    <button onclick="salvar()">Salvar cenário</button>
+
+    <div id="resultado"></div>
+    <div id="historico"></div>
+  </div>
+
   <div id="aviso"></div>
-  <div id="historico"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
@@ -40,6 +57,43 @@
     );
 
     var ultimo = null;
+
+    function avisar(texto) { document.getElementById('aviso').textContent = texto || ''; }
+
+    async function criarConta() {
+      avisar('');
+      var r = await db.auth.signUp({
+        email: document.getElementById('email').value,
+        password: document.getElementById('senha').value
+      });
+      if (r.error) { avisar(r.error.message); return; }
+      if (!r.data.session) { avisar('Conta criada. Se o Supabase exigir confirmação, confirme pelo e-mail e depois clique em Entrar.'); }
+    }
+
+    async function entrar() {
+      avisar('');
+      var r = await db.auth.signInWithPassword({
+        email: document.getElementById('email').value,
+        password: document.getElementById('senha').value
+      });
+      if (r.error) { avisar(r.error.message); }
+    }
+
+    async function sair() { await db.auth.signOut(); }
+
+    function atualizarTela(sessao) {
+      document.getElementById('login').style.display = sessao ? 'none' : 'block';
+      document.getElementById('app').style.display = sessao ? 'block' : 'none';
+      if (sessao) {
+        document.getElementById('usuario').textContent = 'Logada como ' + sessao.user.email;
+        setTimeout(mostrar, 0);
+      } else {
+        document.getElementById('historico').innerHTML = '';
+        document.getElementById('resultado').innerHTML = '';
+      }
+    }
+
+    db.auth.onAuthStateChange(function (evento, sessao) { atualizarTela(sessao); });
 
     function calcular() {
       var volume = Number(document.getElementById('volume').value);
@@ -58,11 +112,10 @@
     }
 
     async function salvar() {
-      var aviso = document.getElementById('aviso');
-      aviso.textContent = '';
-      if (!ultimo) { aviso.textContent = 'Clique em Calcular antes de salvar.'; return; }
+      avisar('');
+      if (!ultimo) { avisar('Clique em Calcular antes de salvar.'); return; }
       var resp = await db.from('cenarios').insert(ultimo);
-      if (resp.error) { aviso.textContent = 'Erro ao salvar: ' + resp.error.message; return; }
+      if (resp.error) { avisar('Erro ao salvar: ' + resp.error.message); return; }
       mostrar();
     }
 
@@ -70,7 +123,7 @@
       var resp = await db.from('cenarios').select('*').order('created_at', { ascending: false }).limit(10);
       var caixa = document.getElementById('historico');
       if (resp.error) { caixa.textContent = 'Erro ao carregar: ' + resp.error.message; return; }
-      var html = '<strong>Cenários salvos (no banco de dados)</strong><br>';
+      var html = '<strong>Seus cenários salvos</strong><br>';
       if (resp.data.length === 0) { html += 'Nenhum ainda.'; }
       resp.data.forEach(function (c) {
         html += Number(c.volume) + ' un, ' + Number(c.crescimento) + '% ao mês, ' + Number(c.meses) + ' meses: total ' + Number(c.total).toLocaleString('pt-BR') + '<br>';
@@ -78,7 +131,7 @@
       caixa.innerHTML = html;
     }
 
-    mostrar();
+    db.auth.getSession().then(function (r) { atualizarTela(r.data.session); });
   </script>
 </body>
 </html>
