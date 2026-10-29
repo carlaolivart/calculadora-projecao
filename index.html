@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Calculadora de projeção</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 480px; margin: 40px auto; }
+    label { display: block; margin-top: 12px; }
+    input { padding: 6px; width: 100%; }
+    button { margin-top: 16px; padding: 10px 16px; background: #2e7d32; color: white; border: none; border-radius: 6px; cursor: pointer; }
+    #resultado { margin-top: 20px; font-size: 18px; }
+  </style>
+</head>
+<body>
+  <h1>Calculadora de projeção de volume</h1>
+
+  <label>Volume mensal atual (unidades)</label>
+  <input id="volume" type="number" value="1000">
+
+  <label>Crescimento mensal (%)</label>
+  <input id="crescimento" type="number" value="5">
+
+  <label>Quantidade de meses</label>
+  <input id="meses" type="number" value="12">
+
+  <button onclick="calcular()">Calcular</button>
+
+  <div id="resultado"></div>
+
+  <script>
+    function calcular() {
+      var volume = Number(document.getElementById('volume').value);
+      var taxa = Number(document.getElementById('crescimento').value) / 100;
+      var meses = Number(document.getElementById('meses').value);
+      var total = 0;
+      var atual = volume;
+      for (var i = 1; i <= meses; i++) {
+        atual = atual * (1 + taxa);
+        total = total + atual;
+      }
+      document.getElementById('resultado').innerHTML =
+        'Volume no mês ' + meses + ': ' + Math.round(atual).toLocaleString('pt-BR') + '<br>' +
+        'Total acumulado: ' + Math.round(total).toLocaleString('pt-BR');
+    }
+  </script>
+</body>
+</html>
